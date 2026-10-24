@@ -1,0 +1,20 @@
+# FOUNDATIONS OF ARTIFICIAL INTELLIGENCE & MACHINE LEARNING
+
+## 1. Large Language Models (LLMs)
+Large Language Models are deep neural networks based on the Transformer architecture (introduced in the 2017 paper "Attention Is All You Need"). They are trained on billions of sentences to predict the most probable next token given previous context.
+
+## 2. Tokens
+Computers do not perceive English words or letters directly. Text is converted into numerical chunks called "tokens".
+- 1 token is roughly 4 characters or 0.75 English words.
+- For example, the sentence "Learning AI is fun!" is broken down into approximately 5 tokens: ["Learn", "ing", " AI", " is", " fun", "!"].
+
+## 3. Temperature & Top-P
+Temperature is a key generation setting:
+- Temperature = 0.0: The model always selects the highest-probability token. This results in consistent, factual, and deterministic outputs (great for math, code, or factual lookups).
+- Temperature = 0.7 to 1.0: Introduces randomness and diversity, which is great for creative writing, brainstorming, and conversational variety.
+
+## 4. Retrieval-Augmented Generation (RAG)
+LLMs have a fixed knowledge cutoff date and can sometimes "hallucinate" (invent plausible-sounding falsehoods). RAG solves this problem:
+1. Search: Queries an external database or document collection for relevant passages.
+2. Context Injection: Inserts those passages into the prompt.
+3. Generation: Instructs the model to answer based strictly on the retrieved facts.
