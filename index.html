@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StudyBuddy AI - Learning & Research Companion</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .chat-bubble-user { background: #3B82F6; color: white; border-radius: 1rem 1rem 0.2rem 1rem; }
+    .chat-bubble-ai { background: #F1F5F9; color: #1E293B; border-radius: 1rem 1rem 1rem 0.2rem; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col md:flex-row">
+
+  <!-- SIDEBAR: AI Control Center -->
+  <aside class="w-full md:w-80 bg-white border-r border-slate-200 p-6 flex flex-col justify-between shrink-0 shadow-sm">
+    <div class="space-y-6">
+      <div>
+        <div class="flex items-center space-x-2 text-indigo-600 mb-1">
+          <i class="fa-solid fa-brain text-2xl"></i>
+          <h1 class="text-xl font-bold text-slate-900">StudyBuddy AI</h1>
+        </div>
+        <p class="text-xs text-slate-500">Autonomous Learning Companion</p>
+      </div>
+
+      <!-- Live API Status Badge -->
+      <div id="statusBadge" class="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+        <span>🟢 Live Gemini Connected</span>
+      </div>
+
+      <!-- Settings Form -->
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Google Gemini API Key</label>
+          <div class="relative">
+            <input type="password" id="apiKeyInput" value=""
+              onchange="localStorage.setItem('saved_gemini_key', this.value.trim()); updateStatusBadge();"
+              class="w-full text-xs font-mono p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              placeholder="Paste your Gemini API key here...">
+            <button onclick="toggleKeyVisibility()" class="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 text-xs">
+              <i id="eyeIcon" class="fa-solid fa-eye"></i>
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-400 mt-1">Saved securely in your browser's local storage.</p>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">AI Model</label>
+          <select id="modelSelect" class="w-full text-xs p-2.5 bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            <option value="gemini-3.8-flash" selected>gemini-3.8-flash (Fast & Recommended)</option>
+            <option value="gemini-3.8-pro">gemini-3.8-pro (Complex Reasoning)</option>
+            <option value="gemini-3.8-flash-lite">gemini-3.8-flash-lite (Ultra Lightweight)</option>
+          </select>
+        </div>
+
+        <div>
+          <div class="flex justify-between text-xs font-semibold uppercase text-slate-500 mb-1">
+            <span>Creativity (Temp)</span>
+            <span id="tempValue" class="text-indigo-600">0.7</span>
+          </div>
+          <input type="range" id="tempSlider" min="0" max="1" step="0.05" value="0.7"
+            class="w-full accent-indigo-600 cursor-pointer"
+            oninput="document.getElementById('tempValue').innerText = this.value">
+          <div class="flex justify-between text-[10px] text-slate-400">
+            <span>Factual (0.0)</span>
+            <span>Creative (1.0)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="pt-6 border-t border-slate-100 text-[11px] text-slate-400">
+      GitHub Pages Production Build • Hosted live on GitHub
+    </div>
+  </aside>
+
+  <!-- MAIN VIEWPORT -->
+  <main class="flex-1 flex flex-col min-h-screen overflow-y-auto">
+    <!-- TOP NAVIGATION TABS -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-10 px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex space-x-2">
+        <button onclick="switchTab('chat')" id="tabBtn-chat"
+          class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold transition bg-indigo-50 text-indigo-700">
+          <i class="fa-solid fa-comments mr-1.5"></i> 💬 AI Tutor Chat
+        </button>
+        <button onclick="switchTab('docs')" id="tabBtn-docs"
+          class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-file-lines mr-1.5"></i> 📄 Document Q&A
+        </button>
+        <button onclick="switchTab('quiz')" id="tabBtn-quiz"
+          class="tab-btn px-4 py-2 rounded-lg text-sm font-semibold transition text-slate-600 hover:bg-slate-100">
+          <i class="fa-solid fa-list-check mr-1.5"></i> 🎯 Interactive Quiz
+        </button>
+      </div>
+    </header>
+
+    <!-- CONTENT SECTIONS -->
+    <div class="p-6 max-w-5xl w-full mx-auto flex-1 flex flex-col">
+
+      <!-- ================= TAB 1: AI TUTOR CHAT ================= -->
+      <section id="section-chat" class="flex-1 flex flex-col">
+        <!-- Persona Selector -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 mb-4 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div class="flex items-center space-x-2">
+            <span class="text-xs font-bold uppercase text-slate-400">Tutor Style:</span>
+            <select id="personaSelect" class="text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500">
+              <option value="patient">🧑‍🏫 Patient Tutor (Friendly, step-by-step guidance)</option>
+              <option value="coder">💻 Python Coding Mentor (Clean code snippets & best practices)</option>
+              <option value="eli5">🧒 ELI5 Explainer (Everyday analogies & simple terms)</option>
+              <option value="socratic">🧐 Socratic Coach (Guides with questions)</option>
+            </select>
+          </div>
+          <button onclick="clearChat()" class="text-xs text-rose-500 hover:text-rose-700 font-medium">
+            <i class="fa-solid fa-trash-can mr-1"></i> Clear Chat
+          </button>
+        </div>
+
+        <!-- Chat Container -->
+        <div id="chatMessages" class="flex-1 space-y-4 mb-4 overflow-y-auto max-h-[550px] p-2">
+          <div class="flex items-start space-x-3">
+            <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 text-sm font-bold">AI</div>
+            <div class="chat-bubble-ai p-4 text-sm max-w-2xl shadow-sm">
+              Hello! I'm your StudyBuddy AI tutor. Ask me any question, paste a coding problem, or tell me what topic you are studying today!
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form onsubmit="handleSendChat(event)" class="flex gap-2">
+          <input type="text" id="chatInput" placeholder="Ask a question (e.g. 'How does neural network backpropagation work?')..."
+            class="flex-1 p-3 bg-white border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm" required>
+          <button type="submit" id="chatSendBtn" class="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl text-sm transition shadow-sm flex items-center">
+            <span>Send</span> <i class="fa-solid fa-paper-plane ml-2 text-xs"></i>
+          </button>
+        </form>
+      </section>
+
+      <!-- ================= TAB 2: DOCUMENT Q&A & RESEARCH ================= -->
+      <section id="section-docs" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-bold text-slate-800">📄 Grounded Document Analysis</h2>
+            <button onclick="loadSampleDoc()" class="text-xs font-semibold px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition">
+              📋 Load Sample AI Notes
+            </button>
+          </div>
+          <textarea id="docInput" rows="6" placeholder="Paste your study notes, article, or lecture text here..."
+            class="w-full p-3.5 bg-slate-50 border border-slate-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+
+          <div class="flex flex-wrap gap-2 pt-2">
+            <button onclick="analyzeDocTask('Summarize this document in 3 concise, high-impact bullet points.')"
+              class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs rounded-lg transition">
+              📝 3-Bullet Summary
+            </button>
+            <button onclick="analyzeDocTask('Extract the top 5 key takeaways or definitions from this text.')"
+              class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs rounded-lg transition">
+              💡 Key Takeaways
+            </button>
+            <button onclick="analyzeDocTask('Generate 3 frequently asked questions and answers based strictly on this text.')"
+              class="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-medium text-xs rounded-lg transition">
+              ❓ Generate FAQ
+            </button>
+          </div>
+
+          <!-- Custom Question -->
+          <div class="flex gap-2 pt-2">
+            <input type="text" id="customDocQuestion" placeholder="Or ask a specific question about the document..."
+              class="flex-1 p-2.5 text-xs bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button onclick="handleCustomDocQ()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg transition">
+              🔍 Ask
+            </button>
+          </div>
+        </div>
+
+        <!-- Document Results Card -->
+        <div id="docResultCard" class="hidden bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center">
+            <i class="fa-solid fa-square-poll-vertical text-indigo-600 mr-2"></i> Analysis Results
+          </h3>
+          <div id="docResultText" class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed"></div>
+        </div>
+      </section>
+
+      <!-- ================= TAB 3: INTERACTIVE QUIZ GENERATOR ================= -->
+      <section id="section-quiz" class="hidden space-y-6">
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+          <h2 class="text-base font-bold text-slate-800">🎯 Interactive Multiple-Choice Quiz</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="sm:col-span-2">
+              <label class="block text-xs font-semibold text-slate-500 mb-1 uppercase">Study Topic or Subject</label>
+              <input type="text" id="quizTopic" value="Foundations of Machine Learning & LLMs"
+                class="w-full p-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1 uppercase">Questions</label>
+              <select id="quizNum" class="w-full p-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                <option value="3" selected>3 Questions</option>
+                <option value="5">5 Questions</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="handleGenerateQuiz()" id="quizGenBtn"
+            class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm rounded-lg transition flex items-center">
+            <span>🚀 Generate Quiz</span>
+          </button>
+        </div>
+
+        <!-- Quiz Container -->
+        <div id="quizContainer" class="hidden space-y-4"></div>
+
+        <!-- Score Report -->
+        <div id="quizReport" class="hidden bg-white p-6 rounded-xl border border-slate-200 shadow-sm"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ================= JAVASCRIPT LOGIC ================= -->
+  <script>
+    // Load saved API key on startup
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedKey = localStorage.getItem('saved_gemini_key');
+      if (savedKey) {
+        document.getElementById('apiKeyInput').value = savedKey;
+      }
+      updateStatusBadge();
+    });
+
+    function updateStatusBadge() {
+      const key = document.getElementById('apiKeyInput').value.trim();
+      const badge = document.getElementById('statusBadge');
+      if (key) {
+        badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-semibold border border-emerald-200";
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span>🟢 Live Gemini Connected</span>';
+      } else {
+        badge.className = "flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200";
+        badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>🟡 Key Required in Sidebar</span>';
+      }
+    }
+    // Tab Switching
+    function switchTab(tabId) {
+      ['chat', 'docs', 'quiz'].forEach(id => {
+        document.getElementById(`section-${id}`).classList.add('hidden');
+        document.getElementById(`tabBtn-${id}`).classList.remove('bg-indigo-50', 'text-indigo-700');
+        document.getElementById(`tabBtn-${id}`).classList.add('text-slate-600');
+      });
+      document.getElementById(`section-${tabId}`).classList.remove('hidden');
+      document.getElementById(`tabBtn-${tabId}`).classList.add('bg-indigo-50', 'text-indigo-700');
+      document.getElementById(`tabBtn-${tabId}`).classList.remove('text-slate-600');
+    }
+
+    function toggleKeyVisibility() {
+      const input = document.getElementById('apiKeyInput');
+      const icon = document.getElementById('eyeIcon');
+      if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+      } else {
+        input.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
+      }
+    }
+
+    // Direct Gemini REST API Caller
+    async function callGeminiAPI(prompt, systemInstruction = "", temperature = 0.7, jsonMode = false) {
+      const apiKey = document.getElementById('apiKeyInput').value.trim();
+      const model = document.getElementById('modelSelect').value;
+
+      if (!apiKey) {
+        throw new Error("No API key provided. Please paste your key in the sidebar.");
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: parseFloat(temperature),
+          responseMimeType: jsonMode ? "application/json" : "text/plain"
+        }
+      };
+
+      if (systemInstruction) {
+        payload.systemInstruction = {
+          parts: [{ text: systemInstruction }]
+        };
+      }
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (data.error) {
+        throw new Error(data.error.message || "Gemini API error");
+      }
+
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "No response received.";
+    }
+
+    // Persona System Prompts
+    const personas = {
+      patient: "You are a warm, encouraging, and patient tutor. Explain things clearly step by step, using bullet points and examples.",
+      coder: "You are an expert Python and AI software engineer. Provide clean, readable, well-commented code snippets and explain how they work.",
+      eli5: "You explain complex computer science and AI concepts as if speaking to a 10-year-old. Use vivid everyday analogies (like cooking, Lego, or bicycles).",
+      socratic: "You are a Socratic tutor. Instead of just giving the answer directly, ask thoughtful questions that guide the user to discover the solution."
+    };
+
+    // Chat Logic
+    async function handleSendChat(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendChatMessage('user', message);
+      input.value = '';
+
+      const personaKey = document.getElementById('personaSelect').value;
+      const systemPrompt = personas[personaKey];
+      const temp = document.getElementById('tempSlider').value;
+
+      const aiMsgElem = appendChatMessage('ai', '<i class="fa-solid fa-spinner fa-spin mr-1"></i> Thinking...');
+
+      try {
+        const reply = await callGeminiAPI(message, systemPrompt, temp);
+        aiMsgElem.innerText = reply;
+      } catch (err) {
+        aiMsgElem.innerText = "⚠️ Error: " + err.message;
+      }
+    }
+
+    function appendChatMessage(role, text) {
+      const container = document.getElementById('chatMessages');
+      const row = document.createElement('div');
+      row.className = "flex items-start space-x-3";
+
+      if (role === 'user') {
+        row.className = "flex items-start justify-end space-x-3";
+        row.innerHTML = `
+          <div class="chat-bubble-user p-3.5 text-sm max-w-2xl shadow-sm leading-relaxed">${escapeHtml(text)}</div>
+          <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 text-xs font-bold">You</div>
+        `;
+      } else {
+        row.innerHTML = `
+          <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 text-xs font-bold">AI</div>
+          <div class="chat-bubble-ai p-3.5 text-sm max-w-2xl shadow-sm leading-relaxed whitespace-pre-wrap">${text}</div>
+        `;
+      }
+      container.appendChild(row);
+      container.scrollTop = container.scrollHeight;
+      return row.querySelector('.chat-bubble-ai');
+    }
+
+    function clearChat() {
+      document.getElementById('chatMessages').innerHTML = `
+        <div class="flex items-start space-x-3">
+          <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0 text-sm font-bold">AI</div>
+          <div class="chat-bubble-ai p-4 text-sm max-w-2xl shadow-sm">Chat cleared! What would you like to learn next?</div>
+        </div>
+      `;
+    }
+
+    // Document Logic
+    const sampleDoc = `ARTIFICIAL INTELLIGENCE & MACHINE LEARNING CHEAT SHEET
+1. Tokens:
+   Language models do not process text letter-by-letter. Instead, text is broken into sub-word chunks called 'tokens'. For example, 1,000 tokens is roughly 750 English words.
+
+2. Temperature:
+   Temperature is a parameter between 0.0 and 1.0 controlling randomness. 0.0 makes the model choose the single most likely token every time (deterministic, ideal for math and coding). Values around 0.7-1.0 introduce variability for creative writing.
+
+3. Embeddings:
+   An embedding is a vector (a list of numbers) representing semantic meaning. Sentences with similar meanings have high cosine similarity.
+
+4. Retrieval-Augmented Generation (RAG):
+   RAG prevents hallucinations by first searching an external database or document for relevant excerpts and injecting those excerpts into the prompt as verified factual reference material.`;
+
+    function loadSampleDoc() {
+      document.getElementById('docInput').value = sampleDoc;
+    }
+
+    async function analyzeDocTask(task) {
+      const text = document.getElementById('docInput').value.trim();
+      if (!text) return alert("Please paste text or click 'Load Sample AI Notes' first!");
+
+      const card = document.getElementById('docResultCard');
+      const resultElem = document.getElementById('docResultText');
+      card.classList.remove('hidden');
+      resultElem.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Analyzing document...';
+
+      const prompt = `You are an expert research and study assistant.\nHere is the source document text:\n---------------------\n${text}\n---------------------\nTask:\n${task}\n\nPlease provide a clear, accurate response strictly based on the text above.`;
+
+      try {
+        const reply = await callGeminiAPI(prompt, "", 0.3);
+        resultElem.innerText = reply;
+      } catch (err) {
+        resultElem.innerText = "⚠️ Error: " + err.message;
+      }
+    }
+
+    function handleCustomDocQ() {
+      const q = document.getElementById('customDocQuestion').value.trim();
+      if (!q) return alert("Please enter a question!");
+      analyzeDocTask(q);
+    }
+
+    // Quiz Logic
+    let currentQuiz = [];
+    async function handleGenerateQuiz() {
+      const topic = document.getElementById('quizTopic').value.trim();
+      const num = document.getElementById('quizNum').value;
+      const btn = document.getElementById('quizGenBtn');
+      const container = document.getElementById('quizContainer');
+      const report = document.getElementById('quizReport');
+
+      report.classList.add('hidden');
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> Generating...';
+      btn.disabled = true;
+
+      const prompt = `Generate a ${num}-question multiple choice quiz on this topic:\n"${topic}"\n\nYou MUST respond strictly with valid JSON conforming to this schema:\n[\n  {\n    "question": "Question text here?",\n    "options": ["Option A", "Option B", "Option C", "Option D"],\n    "correct_index": 0,\n    "explanation": "Brief explanation of why this answer is correct."\n  }\n]`;
+
+      try {
+        const rawJson = await callGeminiAPI(prompt, "", 0.3, true);
+        currentQuiz = JSON.parse(rawJson);
+        renderQuiz();
+      } catch (err) {
+        alert("Quiz error: " + err.message);
+      } finally {
+        btn.innerHTML = '<span>🚀 Generate Quiz</span>';
+        btn.disabled = false;
+      }
+    }
+
+    function renderQuiz() {
+      const container = document.getElementById('quizContainer');
+      container.innerHTML = '';
+      container.classList.remove('hidden');
+
+      currentQuiz.forEach((q, i) => {
+        const card = document.createElement('div');
+        card.className = "bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3";
+        card.innerHTML = `
+          <h4 class="font-bold text-slate-800 text-sm">Question ${i + 1}: ${escapeHtml(q.question)}</h4>
+          <div class="space-y-2">
+            ${q.options.map((opt, optIdx) => `
+              <label class="flex items-center space-x-3 p-3 bg-slate-50 hover:bg-slate-100 rounded-lg cursor-pointer border border-slate-200 text-xs">
+                <input type="radio" name="quiz_q_${i}" value="${optIdx}" class="text-indigo-600 focus:ring-indigo-500">
+                <span class="text-slate-700">${escapeHtml(opt)}</span>
+              </label>
+            `).join('')}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      const submitBtn = document.createElement('button');
+      submitBtn.className = "px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm rounded-lg shadow-sm transition";
+      submitBtn.innerText = "✅ Submit Answers";
+      submitBtn.onclick = evaluateQuiz;
+      container.appendChild(submitBtn);
+    }
+
+    function evaluateQuiz() {
+      let score = 0;
+      const total = currentQuiz.length;
+      const report = document.getElementById('quizReport');
+      report.classList.remove('hidden');
+      report.innerHTML = `<h3 class="text-base font-bold text-slate-900 mb-4">📊 Score Report</h3>`;
+
+      currentQuiz.forEach((q, i) => {
+        const selected = document.querySelector(`input[name="quiz_q_${i}"]:checked`);
+        const userChoice = selected ? parseInt(selected.value) : -1;
+        const isCorrect = userChoice === q.correct_index;
+
+        if (isCorrect) score++;
+
+        const item = document.createElement('div');
+        item.className = `p-4 rounded-lg mb-3 border text-xs leading-relaxed ${isCorrect ? 'bg-emerald-50 border-emerald-200 text-emerald-900' : 'bg-rose-50 border-rose-200 text-rose-900'}`;
+        item.innerHTML = `
+          <div class="font-bold mb-1">${isCorrect ? '✅' : '❌'} Question ${i + 1}: ${escapeHtml(q.question)}</div>
+          <div><strong>Correct Answer:</strong> ${escapeHtml(q.options[q.correct_index])}</div>
+          <div class="mt-1 text-slate-600"><em>Explanation:</em> ${escapeHtml(q.explanation)}</div>
+        `;
+        report.appendChild(item);
+      });
+
+      const percentage = Math.round((score / total) * 100);
+      const scoreBadge = document.createElement('div');
+      scoreBadge.className = "mt-4 p-4 rounded-xl text-center font-bold text-sm " + (percentage >= 70 ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800");
+      scoreBadge.innerText = `Final Score: ${score} / ${total} (${percentage}%)`;
+      report.prepend(scoreBadge);
+      report.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.innerText = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
