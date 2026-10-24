@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🧠 StudyBuddy AI – Intelligent Learning & Research Assistant
 
 A complete, beginner-friendly AI project designed to help you learn modern AI engineering by doing.
@@ -102,3 +103,6 @@ Try modifying the code to add your own features:
 1. **Flashcard Mode:** Add a button in `app.py` that generates 5 two-sided study flashcards.
 2. **Export to File:** Add a button to save the generated quiz or summary to a `.txt` or `.md` file on your computer.
 3. **Voice Input/Output:** Experiment with Python's `pyttsx3` library to have the AI tutor speak answers out loud!
+=======
+# Dls_Study_Buddy_Ai
+>>>>>>> d24ad7a04bfb99f0d0c254108e7207f628baa305
