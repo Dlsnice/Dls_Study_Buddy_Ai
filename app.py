@@ -1,5 +1,12 @@
+import os
 import streamlit as st
 import ai_engine
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # ==============================================================================
 # PAGE CONFIGURATION
@@ -61,8 +68,10 @@ with st.sidebar:
     st.title("⚙️ AI Control Center")
     st.caption("Configure your model settings and API keys here.")
 
+    default_key = os.environ.get("GEMINI_API_KEY", "")
     api_key = st.text_input(
         "Google Gemini API Key",
+        value=default_key,
         type="password",
         help="Get a free key at https://aistudio.google.com/app/apikey. If blank, app runs in Demo Mode.",
         placeholder="Paste AI Studio key here..."
